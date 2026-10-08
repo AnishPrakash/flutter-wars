@@ -24,13 +24,11 @@ from app.modules.catalog.errors import (
     WidgetNotArchived,
     WidgetNotFound,
 )
-from app.modules.catalog.models import MAX_FREE_QUANTITY, WIDGET_ID_PATTERN, Widget, WidgetStatus
+from app.modules.catalog.models import WIDGET_ID_PATTERN, Widget, WidgetStatus
 
-EDITABLE_FIELDS = frozenset(
-    {"display_name", "description", "category", "flutter_classes", "is_free", "free_quantity", "internal_notes"}
-)
+EDITABLE_FIELDS = frozenset({"display_name", "description", "category", "flutter_classes", "internal_notes"})
 IMMUTABLE_FIELDS = ("id", "appdev_key")
-NOT_NULL_FIELDS = frozenset({"display_name", "category", "flutter_classes", "is_free"})
+NOT_NULL_FIELDS = frozenset({"display_name", "category", "flutter_classes"})
 
 
 # ---------------------------------------------------------------- reads
@@ -68,13 +66,6 @@ def list_widgets(s: Session, *, include_archived: bool = False) -> list[Widget]:
 # ---------------------------------------------------------------- organizer changes
 
 
-def _check_free(is_free: bool, free_quantity: int | None) -> None:
-    if free_quantity is not None and not is_free:
-        raise InvalidWidgetData("free_quantity can only be set when is_free is true")
-    if free_quantity is not None and not 0 <= free_quantity <= MAX_FREE_QUANTITY:
-        raise InvalidWidgetData(f"free_quantity must be between 0 and {MAX_FREE_QUANTITY}")
-
-
 def create_widget(
     s: Session,
     *,
@@ -84,13 +75,10 @@ def create_widget(
     category: str,
     description: str | None = None,
     flutter_classes: list[str] | None = None,
-    is_free: bool = False,
-    free_quantity: int | None = None,
     internal_notes: str | None = None,
 ) -> Widget:
     if not re.fullmatch(WIDGET_ID_PATTERN, widget_id):
         raise InvalidWidgetData("widget id must match ^[a-z][a-z0-9_]{1,39}$")
-    _check_free(is_free, free_quantity)
     # Friendly pre-checks; the UNIQUE constraints below are the real guarantee under races.
     if repo.id_exists(s, widget_id):
         raise WidgetDuplicate("id")
@@ -103,8 +91,6 @@ def create_widget(
         description=description,
         category=category,
         flutter_classes=list(flutter_classes or []),
-        is_free=is_free,
-        free_quantity=free_quantity,
         internal_notes=internal_notes,  # organizer's own notes; WHO did it goes to the audit log
     )
     try:
@@ -142,7 +128,6 @@ def update_widget(
     diff = {f: [getattr(w, f), v] for f, v in changes.items() if getattr(w, f) != v}
     if not diff:
         return w, {}  # nothing changed: no version bump, no audit row
-    _check_free(changes.get("is_free", w.is_free), changes.get("free_quantity", w.free_quantity))
     for f, (_old, new) in diff.items():
         setattr(w, f, new)
     return repo.save(s, w), diff

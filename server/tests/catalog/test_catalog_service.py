@@ -125,21 +125,37 @@ def test_no_change_means_no_version_bump(db):
     assert (w2.version, diff) == (1, {})
 
 
-@pytest.mark.parametrize("field", ["display_name", "category", "flutter_classes", "is_free"])
+@pytest.mark.parametrize("field", ["display_name", "category", "flutter_classes"])
 def test_required_fields_cannot_be_nulled(db, field):
     w = _create(db)
     with pytest.raises(InvalidWidgetData):
         catalog.update_widget(db, w.id, {field: None}, expected_version=1)
 
 
-def test_free_quantity_rules(db):
-    with pytest.raises(InvalidWidgetData):
-        _create(db, free_quantity=3)  # not free
-    w = _create(db, is_free=True, free_quantity=3)
-    with pytest.raises(InvalidWidgetData):
-        catalog.update_widget(db, w.id, {"is_free": False}, expected_version=1)  # would orphan free_quantity
-    w2, _ = catalog.update_widget(db, w.id, {"is_free": False, "free_quantity": None}, expected_version=1)
-    assert (w2.is_free, w2.free_quantity) == (False, None)
+def test_catalog_holds_no_price_stock_or_allocation(db):
+    """Spec §6: catalog must not own price or stock. Not in the table, not accepted by the service."""
+    cols = {
+        r[0]
+        for r in db.exec(text("SELECT column_name FROM information_schema.columns WHERE table_name = 'widget'")).all()
+    }
+    assert cols == {
+        "id",
+        "appdev_key",
+        "display_name",
+        "description",
+        "category",
+        "flutter_classes",
+        "status",
+        "internal_notes",
+        "version",
+        "created_at",
+        "updated_at",
+        "archived_at",
+    }
+    w = _create(db)
+    for field in ("price", "stock", "is_free", "free_quantity"):
+        with pytest.raises(InvalidWidgetData):
+            catalog.update_widget(db, w.id, {field: 0}, expected_version=1)
 
 
 def test_archived_widget_cannot_be_edited_until_restored(db):
@@ -167,7 +183,7 @@ def test_db_rejects_bad_rows_even_without_python(db):
     cols = "INSERT INTO widget (id, appdev_key, display_name, category"
     for sql in (
         f"{cols}) VALUES ('Bad-ID', 'k1', 'x', 'c')",  # bad id format
-        f"{cols}, free_quantity) VALUES ('ok_id1', 'k2', 'x', 'c', 5)",  # free_quantity on a paid widget
+        f"{cols}, flutter_classes) VALUES ('ok_id1', 'k2', 'x', 'c', '{{}}'::jsonb)",  # classes not a list
         f"{cols}, status) VALUES ('ok_id2', 'k3', 'x', 'c', 'ARCHIVED')",  # archived without archived_at
     ):
         with pytest.raises(DBAPIError, match="ck_widget"):

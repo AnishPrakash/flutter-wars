@@ -8,9 +8,9 @@ import re
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints
 
-from app.modules.catalog.models import MAX_FREE_QUANTITY, WIDGET_ID_PATTERN
+from app.modules.catalog.models import WIDGET_ID_PATTERN
 
 _CLASS_RE = re.compile(r"^[A-Z][A-Za-z0-9_]{0,59}$")  # a Dart class name: Row, IconButton, ListView
 
@@ -35,7 +35,6 @@ DisplayName = Annotated[str, StringConstraints(min_length=1, max_length=60), Aft
 Description = Annotated[str, StringConstraints(max_length=500), AfterValidator(_safe_text)]
 Category = Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]{1,29}$")]
 FlutterClasses = Annotated[list[str], Field(max_length=20), AfterValidator(_classes)]
-FreeQuantity = Annotated[int, Field(strict=True, ge=0, le=MAX_FREE_QUANTITY)]
 Notes = Annotated[str, StringConstraints(strip_whitespace=True, max_length=1000)]
 Reason = Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=500)]
 Version = Annotated[int, Field(strict=True, ge=1)]
@@ -54,8 +53,6 @@ class WidgetPublicOut(BaseModel):
     description: str | None
     category: str
     flutter_classes: list[str]
-    is_free: bool
-    free_quantity: int | None
     archived: bool
 
 
@@ -79,16 +76,8 @@ class WidgetCreateIn(BaseModel):
     category: Category
     description: Description | None = None
     flutter_classes: FlutterClasses = Field(default_factory=list)
-    is_free: bool = Field(default=False, strict=True)
-    free_quantity: FreeQuantity | None = None
     internal_notes: Notes | None = None
     reason: Reason = "Catalog setup"
-
-    @model_validator(mode="after")
-    def _free_rule(self) -> "WidgetCreateIn":
-        if self.free_quantity is not None and not self.is_free:
-            raise ValueError("free_quantity can only be set when is_free is true")
-        return self
 
 
 class WidgetUpdateIn(BaseModel):
@@ -103,8 +92,6 @@ class WidgetUpdateIn(BaseModel):
     description: Description | None = None
     category: Category | None = None
     flutter_classes: FlutterClasses | None = None
-    is_free: bool | None = Field(default=None, strict=True)
-    free_quantity: FreeQuantity | None = None
     internal_notes: Notes | None = None
     id: str | None = Field(default=None, max_length=80)
     appdev_key: str | None = Field(default=None, max_length=80)

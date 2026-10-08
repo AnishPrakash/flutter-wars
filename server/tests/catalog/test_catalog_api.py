@@ -37,8 +37,6 @@ def test_public_list_hides_internal_fields(client, login, make_team):  # (teamma
         "description",
         "category",
         "flutter_classes",
-        "is_free",
-        "free_quantity",
         "archived",
     }
     assert "internal_notes" not in item and "status" not in item and "version" not in item

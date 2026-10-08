@@ -1,4 +1,5 @@
 """Module D: widget (the catalog). Never deleted, only archived; id and appdev_key never change.
+No price, stock or allocation columns here (spec §6): those belong to Pricing, Market and Inventory.
 
 Revision ID: 0002_catalog
 Revises: 0001_temp_team
@@ -22,8 +23,6 @@ def upgrade() -> None:
             description     VARCHAR(500),
             category        VARCHAR(30)  NOT NULL,
             flutter_classes JSONB        NOT NULL DEFAULT '[]'::jsonb,
-            is_free         BOOLEAN      NOT NULL DEFAULT false,
-            free_quantity   INTEGER,
             status          VARCHAR(16)  NOT NULL DEFAULT 'ACTIVE',
             internal_notes  VARCHAR(1000),
             version         INTEGER      NOT NULL DEFAULT 1,
@@ -34,8 +33,6 @@ def upgrade() -> None:
             CONSTRAINT ck_widget_id_format       CHECK (id ~ '^[a-z][a-z0-9_]{1,39}$'),
             CONSTRAINT ck_widget_status          CHECK (status IN ('ACTIVE','ARCHIVED')),
             CONSTRAINT ck_widget_archived_at     CHECK ((status = 'ARCHIVED') = (archived_at IS NOT NULL)),
-            CONSTRAINT ck_widget_free_quantity   CHECK (free_quantity IS NULL
-                                                       OR (is_free AND free_quantity BETWEEN 0 AND 10000)),
             CONSTRAINT ck_widget_classes_array   CHECK (jsonb_typeof(flutter_classes) = 'array'),
             CONSTRAINT ck_widget_version_pos     CHECK (version >= 1)
         );

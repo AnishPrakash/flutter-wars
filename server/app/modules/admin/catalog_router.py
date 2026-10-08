@@ -58,8 +58,6 @@ def create_widget(
         category=body.category,
         description=body.description,
         flutter_classes=body.flutter_classes,
-        is_free=body.is_free,
-        free_quantity=body.free_quantity,
         internal_notes=body.internal_notes,
     )
     audit(

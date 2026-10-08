@@ -14,7 +14,7 @@ def _audit(client, wid):
 
 def test_create_widget_route(client, login_organizer):  # (teammate)
     login_organizer()
-    body = _body(flutter_classes=["Icon", "IconButton", "Icon"], is_free=True, free_quantity=5)
+    body = _body(flutter_classes=["Icon", "IconButton", "Icon"])
     r = client.post("/admin/widgets", json=body)
     assert r.status_code == 201
     d = r.json()
@@ -92,9 +92,9 @@ def test_create_validation(client, login_organizer):
         _body(category="Media Stuff"),
         _body(flutter_classes=["not a class"]),
         _body(flutter_classes=[f"C{i}" for i in range(21)]),
-        _body(is_free="yes"),
-        _body(is_free=True, free_quantity=2.0),
-        _body(free_quantity=3),  # not free
+        _body(is_free=True),  # price/stock fields don't exist in the catalog (spec §6)
+        _body(price=5),
+        _body(stock=10),
         _body(appdev_key="has space"),
         _body(version=5),  # extra field
     ):
